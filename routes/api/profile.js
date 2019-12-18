@@ -8,7 +8,7 @@ const Profile = require("../../models/Profile");
 const User = require("../../models/User");
 
 // @route  POST api/profile
-// @desc   Create or update user profile
+// @desc   Create user profile
 // @access Private
 router.post(
   "/",
@@ -66,6 +66,49 @@ router.post(
     }
   }
 );
+
+// @route  PUT api/profile
+// @desc   Update user profile
+// @access Private
+router.put("/", auth, async (req, res) => {
+  try {
+    let profile = await Profile.findOne({ user: req.user.id });
+    let user = await User.findById(req.user.id);
+
+    if (!profile) {
+      return res.status(400).json({ msg: "No profile found." });
+    }
+
+    const { city, state, zipcode, address, email, avatar } = req.body;
+
+    if (!city && !state && !zipcode && !address && !email && !avatar) {
+      return res
+        .status(400)
+        .json({ msg: "Please add fields to request body." });
+    }
+
+    // Update user profile
+    if (city) profile.city = city;
+    if (state) profile.state = state;
+    if (zipcode) profile.zipcode = zipcode;
+    if (address) profile.address = address;
+    await profile.save();
+
+    // Update user account
+    if (email || avatar) {
+      console.log(user);
+      if (email) user.email = email;
+      if (avatar) user.avatar = avatar;
+      await user.save();
+      profile = await Profile.findOne({ user: req.user.id });
+    }
+
+    return res.json(profile);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
 
 // @route  GET api/profile/me
 // @desc   Get current users profile
@@ -207,5 +250,153 @@ router.put(
     }
   }
 );
+
+// @route  PUT api/profile/category/:id
+// @desc   Update category from profile
+// @access Private
+router.put("/category/:id", auth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ user: req.user.id });
+
+    const { category_name, type, description, img_url } = req.body;
+
+    if (!category_name && !type && !description && !img_url) {
+      return res
+        .status(400)
+        .json({ msg: "Please add fields to request body." });
+    }
+
+    // Get category index
+    const categoryIndex = profile.categories
+      .map(item => item.id)
+      .indexOf(req.params.id);
+
+    if (categoryIndex == undefined || categoryIndex == -1) {
+      return res.status(400).json({ msg: "Category ID is invalid" });
+    }
+
+    if (category_name)
+      profile.categories[categoryIndex].category_name = category_name;
+    if (type) profile.categories[categoryIndex].type = type;
+    if (description)
+      profile.categories[categoryIndex].description = description;
+    if (img_url) profile.categories[categoryIndex].img_url = img_url;
+
+    await profile.save();
+    return res.json(profile);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// @route  PUT api/profile/:category_id/item/:id
+// @desc   Update item from profile
+// @access Private
+router.put("/:category_id/item/:id", auth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ user: req.user.id });
+
+    const { item_name, item_url } = req.body;
+
+    if (!item_name && !item_url) {
+      return res
+        .status(400)
+        .json({ msg: "Please add fields to request body." });
+    }
+
+    // Get category index
+    const categoryIndex = profile.categories
+      .map(item => item.id)
+      .indexOf(req.params.category_id);
+
+    if (categoryIndex == undefined || categoryIndex == -1) {
+      return res.status(400).json({ msg: "Category ID is invalid" });
+    }
+
+    // Get item index
+    const itemIndex = profile.categories[categoryIndex].category_items
+      .map(item => item.id)
+      .indexOf(req.params.id);
+
+    if (itemIndex == undefined || itemIndex == -1) {
+      return res.status(400).json({ msg: "Item ID is invalid" });
+    }
+
+    if (item_name)
+      profile.categories[categoryIndex].category_items[
+        itemIndex
+      ].item_name = item_name;
+    if (item_url)
+      profile.categories[categoryIndex].category_items[
+        itemIndex
+      ].item_url = item_url;
+
+    await profile.save();
+    return res.json(profile);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// @route  DELETE api/profile/category/:id
+// @desc   Delete category from profile
+// @access Private
+router.delete("/category/:id", auth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ user: req.user.id });
+
+    // Get category index
+    const categoryIndex = profile.categories
+      .map(item => item.id)
+      .indexOf(req.params.id);
+
+    if (categoryIndex == undefined || categoryIndex == -1) {
+      return res.status(400).json({ msg: "Category ID is invalid" });
+    }
+
+    profile.categories.splice(categoryIndex, 1);
+    await profile.save();
+    return res.json(profile);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// @route  DELETE api/profile/:category_id/item/:id
+// @desc   Delete item from profile
+// @access Private
+router.delete("/:category_id/item/:id", auth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ user: req.user.id });
+
+    // Get category index
+    const categoryIndex = profile.categories
+      .map(item => item.id)
+      .indexOf(req.params.category_id);
+
+    if (categoryIndex == undefined || categoryIndex == -1) {
+      return res.status(400).json({ msg: "Category ID is invalid" });
+    }
+
+    // Get item index
+    const itemIndex = profile.categories[categoryIndex].category_items
+      .map(item => item.id)
+      .indexOf(req.params.id);
+
+    if (itemIndex == undefined || itemIndex == -1) {
+      return res.status(400).json({ msg: "Item ID is invalid" });
+    }
+
+    profile.categories[categoryIndex].category_items.splice(itemIndex, 1);
+    await profile.save();
+    return res.json(profile);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
 
 module.exports = router;

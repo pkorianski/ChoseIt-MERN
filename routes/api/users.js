@@ -8,6 +8,7 @@ const { check, validationResult } = require("express-validator");
 const auth = require("../../middleware/auth");
 
 const User = require("../../models/User");
+const Profile = require("../../models/Profile");
 
 // @route  POST api/users
 // @desc   Register user
@@ -153,5 +154,22 @@ router.put(
     }
   }
 );
+
+// @route  DELETE api/users/forget
+// @desc   Delete profile & user
+// @access Private
+router.delete("/forget", auth, async (req, res) => {
+  try {
+    // Remove profile
+    await Profile.findOneAndRemove({ user: req.user.id });
+
+    // Remove users
+    await User.findOneAndRemove({ _id: req.user.id });
+    res.json({ msg: "User removed" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
 
 module.exports = router;
